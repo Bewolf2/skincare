@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>护肤品管理目录</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="护肤管理">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+
+<style>
+  :root {
+    --cream: #f5f0e8;
+    --warm-white: #faf8f4;
+    --sage: #8a9e8a;
+    --sage-light: #c4d4c4;
+    --terracotta: #c17b5a;
+    --terracotta-light: #e8c4ad;
+    --charcoal: #2d2d2a;
+    --mid-gray: #7a7a75;
+    --border: #ddd8ce;
+    --gold: #b8965a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background-color: var(--cream); font-family: 'DM Sans', sans-serif; color: var(--charcoal); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: radial-gradient(circle at 20% 20%, rgba(193,123,90,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(138,158,138,0.08) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+  .container { max-width: 980px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  header { padding: 60px 0 40px; text-align: center; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  header::after { content: ''; display: block; width: 48px; height: 2px; background: var(--gold); margin: 20px auto 0; }
+  .header-label { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sage); margin-bottom: 16px; }
+  h1 { font-family: 'Playfair Display', 'Noto Serif SC', serif; font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; color: var(--charcoal); line-height: 1.2; }
+  h1 span { font-style: italic; color: var(--terracotta); }
+  .header-meta { margin-top: 16px; font-size: 13px; color: var(--mid-gray); font-weight: 300; }
+
+  .stats-bar { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 40px; background: var(--warm-white); }
+  .stat-item { flex: 1; padding: 20px; text-align: center; border-right: 1px solid var(--border); transition: background 0.2s; }
+  .stat-item:last-child { border-right: none; }
+  .stat-item:hover { background: var(--cream); }
+  .stat-number { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: var(--terracotta); line-height: 1; }
+  .stat-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mid-gray); margin-top: 6px; }
+
+  .filter-row { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+  .filter-btn { padding: 7px 18px; border: 1px solid var(--border); border-radius: 2px; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 0.08em; cursor: pointer; color: var(--mid-gray); transition: all 0.2s; }
+  .filter-btn:hover, .filter-btn.active { background: var(--charcoal); color: var(--cream); border-color: var(--charcoal); }
+
+  .products-grid { display: grid; gap: 2px; }
+
+  .product-card {
+    background: var(--warm-white); border: 1px solid var(--border);
+    display: grid; grid-template-columns: 120px 1fr auto;
+    align-items: stretch; transition: all 0.25s ease;
+    animation: fadeUp 0.5s ease both; position: relative; overflow: hidden;
+  }
+  .product-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; transition: background 0.2s; z-index: 2; }
+  .product-card:hover { background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.07); transform: translateY(-1px); }
+  .product-card:hover::before { background: var(--terracotta); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .product-card:nth-child(1) { animation-delay: 0.05s; }
+  .product-card:nth-child(2) { animation-delay: 0.10s; }
+  .product-card:nth-child(3) { animation-delay: 0.15s; }
+  .product-card:nth-child(4) { animation-delay: 0.20s; }
+  .product-card:nth-child(5) { animation-delay: 0.25s; }
+  .product-card:nth-child(6) { animation-delay: 0.30s; }
+
+  .product-image-col {
+    width: 120px; min-height: 140px;
+    background: var(--cream); border-right: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; cursor: pointer; position: relative;
+    overflow: hidden; transition: background 0.2s; flex-shrink: 0;
+  }
+  .product-image-col:hover { background: #ede8df; }
+  .product-image-col:hover .img-overlay { opacity: 1; }
+  .product-image-col img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; display: none; }
+  .product-image-col img.loaded { display: block; }
+  .img-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .img-placeholder svg { opacity: 0.3; }
+  .img-placeholder span { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid-gray); text-align: center; line-height: 1.5; }
+  .img-overlay { position: absolute; inset: 0; background: rgba(45,45,42,0.55); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+  .img-overlay span { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: white; font-weight: 500; }
+  .img-file-input { display: none; }
+
+  .product-info { padding: 24px 28px; min-width: 0; }
+  .product-index-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .product-index { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: var(--terracotta-light); }
+  .product-brand { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage); }
+  .product-name { font-family: 'Playfair Display', 'Noto Serif SC', serif; font-size: 1.1rem; font-weight: 700; color: var(--charcoal); margin-bottom: 4px; line-height: 1.3; }
+  .product-subtitle { font-size: 12px; color: var(--mid-gray); margin-bottom: 14px; font-weight: 300; }
+  .product-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tag { padding: 3px 10px; border: 1px solid var(--border); border-radius: 2px; font-size: 10px; letter-spacing: 0.06em; color: var(--mid-gray); background: var(--cream); }
+  .tag.type-treatment { border-color: var(--sage-light); color: var(--sage); background: rgba(138,158,138,0.08); }
+  .tag.type-serum { border-color: var(--terracotta-light); color: var(--terracotta); background: rgba(193,123,90,0.08); }
+  .tag.type-antibiotic { border-color: #b8965a44; color: var(--gold); background: rgba(184,150,90,0.08); }
+  .product-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .meta-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid-gray); margin-bottom: 4px; font-weight: 500; }
+  .meta-value { font-size: 13px; color: var(--charcoal); }
+  .meta-value.placeholder { color: var(--border); font-style: italic; font-size: 12px; }
+  .meta-value.price { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--terracotta); font-weight: 700; }
+
+  .product-status { padding: 24px 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .status-badge { padding: 4px 12px; border-radius: 2px; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .status-active { background: rgba(138,158,138,0.15); color: var(--sage); border: 1px solid var(--sage-light); }
+  .status-rx { background: rgba(184,150,90,0.12); color: var(--gold); border: 1px solid rgba(184,150,90,0.3); }
+  .status-otc { background: rgba(193,123,90,0.1); color: var(--terracotta); border: 1px solid var(--terracotta-light); }
+  .edit-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--cream); border: 1px solid var(--border);
+    padding: 7px 16px; font-size: 11px; letter-spacing: 0.08em;
+    cursor: pointer; color: var(--charcoal); border-radius: 2px;
+    font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    margin-top: 14px;
+  }
+  .edit-btn::before { content: '✏️'; font-size: 11px; }
+  .edit-btn:hover { background: var(--charcoal); color: white; border-color: var(--charcoal); }
+
+  footer { margin-top: 60px; padding: 32px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--mid-gray); letter-spacing: 0.06em; }
+  .footer-note { font-style: italic; color: var(--terracotta-light); }
+
+  .edit-overlay { display: none; position: fixed; inset: 0; background: rgba(45,45,42,0.6); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .edit-overlay.open { display: flex; }
+  .edit-panel { background: var(--warm-white); border: 1px solid var(--border); padding: 40px; width: 500px; max-width: 92vw; max-height: 90vh; overflow-y: auto; animation: slideIn 0.25s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: scale(0.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .edit-panel h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 24px; color: var(--charcoal); }
+  .edit-field { margin-bottom: 20px; }
+  .edit-field label { display: block; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid-gray); margin-bottom: 8px; }
+  .edit-field input[type="text"] { width: 100%; padding: 10px 14px; border: 1px solid var(--border); background: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--charcoal); outline: none; transition: border-color 0.2s; border-radius: 2px; }
+  .edit-field input[type="text"]:focus { border-color: var(--terracotta); }
+
+  .img-upload-zone { border: 1.5px dashed var(--border); border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--cream); }
+  .img-upload-zone:hover { border-color: var(--terracotta); background: rgba(193,123,90,0.04); }
+  .img-upload-zone input { display: none; }
+  .img-preview-wrap { width: 100%; max-height: 160px; overflow: hidden; border-radius: 3px; margin-bottom: 12px; display: none; }
+  .img-preview-wrap img { width: 100%; object-fit: contain; max-height: 160px; }
+  .img-preview-wrap.visible { display: block; }
+  .upload-hint { font-size: 12px; color: var(--mid-gray); line-height: 1.6; }
+  .upload-hint strong { display: block; color: var(--charcoal); font-size: 13px; margin-bottom: 4px; }
+  .upload-change-btn { margin-top: 10px; font-size: 11px; color: var(--terracotta); cursor: pointer; text-decoration: underline; background: none; border: none; font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em; display: none; }
+
+  .edit-divider { height: 1px; background: var(--border); margin: 24px 0; }
+  .edit-actions { display: flex; gap: 12px; margin-top: 28px; }
+  .btn-save { flex: 1; padding: 12px; background: var(--charcoal); color: var(--cream); border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: background 0.2s; }
+  .btn-save:hover { background: var(--terracotta); }
+  .btn-cancel { padding: 12px 20px; background: transparent; color: var(--mid-gray); border: 1px solid var(--border); font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: all 0.2s; }
+  .btn-cancel:hover { border-color: var(--charcoal); color: var(--charcoal); }
+
+  @media (max-width: 640px) {
+    .product-card { grid-template-columns: 90px 1fr; }
+    .product-image-col { width: 90px; min-height: 120px; }
+    .product-status { display: none; }
+    .product-meta { grid-template-columns: 1fr 1fr; }
+    .stats-bar { flex-wrap: wrap; }
+    .stat-item { min-width: 50%; }
+    .product-info { padding: 16px; }
+    .edit-btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="header-label">Skincare Collection</div>
+    <h1>我的护肤品<span>管理目录</span></h1>
+    <div class="header-meta" id="updateDate">最后更新：2026年3月15日</div>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-number">6</div><div class="stat-label">产品总数</div></div>
+    <div class="stat-item"><div class="stat-number">3</div><div class="stat-label">祛痘类</div></div>
+    <div class="stat-item"><div class="stat-number">2</div><div class="stat-label">抗菌类</div></div>
+    <div class="stat-item"><div class="stat-number">1</div><div class="stat-label">精华类</div></div>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="filterCards('all',this)">全部</button>
+    <button class="filter-btn" onclick="filterCards('serum',this)">精华</button>
+    <button class="filter-btn" onclick="filterCards('treatment',this)">祛痘</button>
+    <button class="filter-btn" onclick="filterCards('antibiotic',this)">抗菌</button>
+    <button class="filter-btn" onclick="openAddPanel()" style="margin-left:auto;background:var(--terracotta);color:white;border-color:var(--terracotta);">＋ 添加产品</button>
+  </div>
+
+  <div class="products-grid">
+    <div class="product-card" data-category="serum">
+      <div class="product-image-col" onclick="triggerImg(1)">
+        <img id="img-1" alt=""><div class="img-placeholder" id="imgph-1"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-1" onchange="handleCardImg(event,1)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">01</span><span class="product-brand">La Roche-Posay · 理肤泉</span></div>
+        <div class="product-name">Effaclar 超浓缩精华</div>
+        <div class="product-subtitle">Ultra Concentré · 控油祛痘 · 日常果酸焕肤</div>
+        <div class="product-tags"><span class="tag type-serum">精华</span><span class="tag">水杨酸</span><span class="tag">烟酰胺</span><span class="tag">果酸</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-1">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-1">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-1">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(1)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-active">使用中</span></div>
+    </div>
+
+    <div class="product-card" data-category="treatment">
+      <div class="product-image-col" onclick="triggerImg(2)">
+        <img id="img-2" alt=""><div class="img-placeholder" id="imgph-2"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-2" onchange="handleCardImg(event,2)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">02</span><span class="product-brand">United Pharmaceuticals</span></div>
+        <div class="product-name">Azeclear 壬二酸乳膏</div>
+        <div class="product-subtitle">Azelaic Acid 20% · 30g · 祛痘 · 淡斑 · 控油</div>
+        <div class="product-tags"><span class="tag type-treatment">祛痘</span><span class="tag">壬二酸 20%</span><span class="tag">淡痘印</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-2">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-2">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-2">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(2)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-active">使用中</span></div>
+    </div>
+
+    <div class="product-card" data-category="treatment">
+      <div class="product-image-col" onclick="triggerImg(3)">
+        <img id="img-3" alt=""><div class="img-placeholder" id="imgph-3"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-3" onchange="handleCardImg(event,3)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">03</span><span class="product-brand">中药品牌</span></div>
+        <div class="product-name">鼻炎膏（绿鸟图案）</div>
+        <div class="product-subtitle">中药外用膏剂 · 具体成分待核实</div>
+        <div class="product-tags"><span class="tag type-treatment">外用药膏</span><span class="tag">中药成分</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-3">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-3">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-3">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(3)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-active">使用中</span></div>
+    </div>
+
+    <div class="product-card" data-category="treatment">
+      <div class="product-image-col" onclick="triggerImg(4)">
+        <img id="img-4" alt=""><div class="img-placeholder" id="imgph-4"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-4" onchange="handleCardImg(event,4)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">04</span><span class="product-brand">中文品牌（蓝紫包装）</span></div>
+        <div class="product-name">外用凝胶（待确认品名）</div>
+        <div class="product-subtitle">具体产品名及成分待核实</div>
+        <div class="product-tags"><span class="tag type-treatment">外用</span><span class="tag">待确认</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-4">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-4">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-4">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(4)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-active">使用中</span></div>
+    </div>
+
+    <div class="product-card" data-category="antibiotic">
+      <div class="product-image-col" onclick="triggerImg(5)">
+        <img id="img-5" alt=""><div class="img-placeholder" id="imgph-5"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-5" onchange="handleCardImg(event,5)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">05</span><span class="product-brand">Galderma · BenzHex</span></div>
+        <div class="product-name">苯甲酰过氧化物凝胶</div>
+        <div class="product-subtitle">Benzoyl Peroxide Gel 5% · 15g · OTC</div>
+        <div class="product-tags"><span class="tag type-antibiotic">抗菌</span><span class="tag">BPO 5%</span><span class="tag">OTC</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-5">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-5">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-5">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(5)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-otc">OTC</span></div>
+    </div>
+
+    <div class="product-card" data-category="antibiotic">
+      <div class="product-image-col" onclick="triggerImg(6)">
+        <img id="img-6" alt=""><div class="img-placeholder" id="imgph-6"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击上传<br>产品图片</span></div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-6" onchange="handleCardImg(event,6)">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row"><span class="product-index">06</span><span class="product-brand">LEO Pharma</span></div>
+        <div class="product-name">Fucidin 夫西地酸乳膏</div>
+        <div class="product-subtitle">Fusidic Acid Cream · 15g · 抗菌消炎</div>
+        <div class="product-tags"><span class="tag type-antibiotic">抗菌</span><span class="tag">夫西地酸</span><span class="tag">处方药</span></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value placeholder" id="ch-6">— 待填写</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price placeholder" id="pr-6">—</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value placeholder" id="dt-6">— 待填写</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(6)">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge status-rx">处方药</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <div>共 6 件产品 · 护肤品管理目录</div>
+    <div class="footer-note">点击左侧图片区域上传照片 · 点击「编辑信息」填写购买详情</div>
+  </footer>
+</div>
+
+<div class="edit-overlay" id="addOverlay">
+  <div class="edit-panel">
+    <h3>＋ 添加新产品</h3>
+
+    <div class="edit-field">
+      <label>产品图片（可选）</label>
+      <div class="img-upload-zone" onclick="document.getElementById('addFile').click()">
+        <div class="img-preview-wrap" id="addPreviewWrap"><img id="addPreviewImg" src="" alt="预览"></div>
+        <div class="upload-hint" id="addUploadHint"><strong>点击上传图片</strong>支持 JPG、PNG、HEIC 等格式</div>
+        <input type="file" accept="image/*" id="addFile" onchange="handleAddImg(event)">
+      </div>
+      <button class="upload-change-btn" id="addChangeBtn" onclick="document.getElementById('addFile').click()">更换图片</button>
+    </div>
+
+    <div class="edit-divider"></div>
+
+    <div class="edit-field">
+      <label>品牌名称</label>
+      <input type="text" id="addBrand" placeholder="例：La Roche-Posay">
+    </div>
+    <div class="edit-field">
+      <label>产品名称 *</label>
+      <input type="text" id="addName" placeholder="例：Effaclar 超浓缩精华">
+    </div>
+    <div class="edit-field">
+      <label>产品副标题 / 描述</label>
+      <input type="text" id="addSubtitle" placeholder="例：控油祛痘 · 30ml">
+    </div>
+    <div class="edit-field">
+      <label>产品分类</label>
+      <select id="addCategory" style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--cream);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--charcoal);outline:none;border-radius:2px;cursor:pointer;">
+        <option value="serum">精华</option>
+        <option value="treatment">祛痘</option>
+        <option value="antibiotic">抗菌</option>
+        <option value="other">其他</option>
+      </select>
+    </div>
+    <div class="edit-field">
+      <label>状态</label>
+      <select id="addStatus" style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--cream);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--charcoal);outline:none;border-radius:2px;cursor:pointer;">
+        <option value="status-active">使用中</option>
+        <option value="status-otc">OTC</option>
+        <option value="status-rx">处方药</option>
+      </select>
+    </div>
+
+    <div class="edit-divider"></div>
+
+    <div class="edit-field">
+      <label>购买渠道</label>
+      <input type="text" id="addChannel" placeholder="例：天猫、京东、药店">
+    </div>
+    <div class="edit-field">
+      <label>价格</label>
+      <input type="text" id="addPrice" placeholder="例：¥158">
+    </div>
+    <div class="edit-field">
+      <label>购买时间</label>
+      <input type="text" id="addDate" placeholder="例：2025年11月">
+    </div>
+
+    <div class="edit-actions">
+      <button class="btn-save" onclick="addProduct()">添加产品</button>
+      <button class="btn-cancel" onclick="closeAddPanel()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-panel">
+    <h3 id="editTitle">编辑产品信息</h3>
+
+    <div class="edit-field">
+      <label>产品图片</label>
+      <div class="img-upload-zone" id="uploadZone" onclick="document.getElementById('panelFile').click()">
+        <div class="img-preview-wrap" id="panelPreviewWrap"><img id="panelPreviewImg" src="" alt="预览"></div>
+        <div class="upload-hint" id="uploadHint"><strong>点击上传图片</strong>支持 JPG、PNG、HEIC 等格式</div>
+        <input type="file" accept="image/*" id="panelFile" onchange="handlePanelImg(event)">
+      </div>
+      <button class="upload-change-btn" id="changeBtn" onclick="document.getElementById('panelFile').click()">更换图片</button>
+    </div>
+
+    <div class="edit-divider"></div>
+
+    <div class="edit-field">
+      <label>购买渠道（例：天猫、京东、药店）</label>
+      <input type="text" id="inputChannel" placeholder="输入购买渠道…">
+    </div>
+    <div class="edit-field">
+      <label>价格（例：¥158）</label>
+      <input type="text" id="inputPrice" placeholder="输入价格…">
+    </div>
+    <div class="edit-field">
+      <label>购买时间（例：2025年11月）</label>
+      <input type="text" id="inputDate" placeholder="输入购买时间…">
+    </div>
+    <div class="edit-actions">
+      <button class="btn-save" onclick="saveEdit()">保存</button>
+      <button class="btn-cancel" onclick="closeEdit()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Storage helpers (localForage / IndexedDB) ──────────────────────
+  const STORE_KEY = 'skincare_catalog_v2';
+
+  let store = { products: {}, extra: [], nextId: 7 };
+  let nextId = 7;
+
+  async function initStore() {
+    try {
+      const data = await localforage.getItem(STORE_KEY);
+      if (data) {
+        store = data;
+        if (!store.products) store.products = {};
+        if (!store.extra) store.extra = [];
+        nextId = store.nextId || 7;
+      }
+    } catch(e) {
+      console.error('Failed to load store from IndexedDB', e);
+    }
+  }
+
+  async function saveStore(data) {
+    try {
+      await localforage.setItem(STORE_KEY, data);
+    } catch(e) {
+      console.error('Failed to save to IndexedDB', e);
+    }
+  }
+
+  // ── Persist ──────────────────────────────────────────────────────
+  function persist() {
+    // 收集预设的卡片数据
+    for (let i = 1; i <= 6; i++) {
+      const chEl = document.getElementById('ch-'+i);
+      const prEl = document.getElementById('pr-'+i);
+      const dtEl = document.getElementById('dt-'+i);
+      const imgEl = document.getElementById('img-'+i);
+      if (!chEl) continue;
+      store.products[i] = {
+        ch: chEl.classList.contains('placeholder') ? '' : chEl.textContent,
+        pr: prEl.classList.contains('placeholder') ? '' : prEl.textContent,
+        dt: dtEl.classList.contains('placeholder') ? '' : dtEl.textContent,
+        img: imgEl && imgEl.classList.contains('loaded') ? imgEl.src : ''
+      };
+    }
+    store.nextId = nextId;
+    saveStore(store); // 异步保存，不阻塞UI
+  }
+
+  // ── Restore on load ───────────────────────────────────────────────
+  function restoreBuiltIn() {
+    for (const [id, data] of Object.entries(store.products)) {
+      const chEl = document.getElementById('ch-'+id);
+      const prEl = document.getElementById('pr-'+id);
+      const dtEl = document.getElementById('dt-'+id);
+      if (!chEl) continue;
+      if (data.ch) { chEl.textContent = data.ch; chEl.classList.remove('placeholder'); }
+      if (data.pr) { prEl.textContent = data.pr; prEl.classList.remove('placeholder'); }
+      if (data.dt) { dtEl.textContent = data.dt; dtEl.classList.remove('placeholder'); }
+      if (data.img) setCardImg(id, data.img);
+    }
+  }
+
+  function restoreExtra() {
+    store.extra.forEach(p => renderCard(p, false));
+    updateCounter();
+  }
+
+  // ── Card rendering ────────────────────────────────────────────────
+  const statusLabels = {'status-active':'使用中','status-otc':'OTC','status-rx':'处方药'};
+
+  function renderCard(p, animate) {
+    const idx = String(p.id).padStart(2,'0');
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.dataset.category = p.category;
+    card.style.animationDelay = animate ? '0s' : '-1s';
+    card.innerHTML = `
+      <div class="product-image-col" onclick="triggerImg(${p.id})">
+        <img id="img-${p.id}" alt="">
+        <div class="img-placeholder" id="imgph-${p.id}">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8a9e8a" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>点击上传<br>产品图片</span>
+        </div>
+        <div class="img-overlay"><span>更换图片</span></div>
+        <input type="file" accept="image/*" class="img-file-input" id="file-${p.id}" onchange="handleCardImg(event,${p.id})">
+      </div>
+      <div class="product-info">
+        <div class="product-index-row">
+          <span class="product-index">${idx}</span>
+          <span class="product-brand">${p.brand||''}</span>
+        </div>
+        <div class="product-name">${p.name}</div>
+        <div class="product-subtitle">${p.subtitle||''}</div>
+        <div class="product-tags"></div>
+        <div class="product-meta">
+          <div class="meta-item"><div class="meta-label">购买渠道</div><div class="meta-value ${p.ch?'':'placeholder'}" id="ch-${p.id}">${p.ch||'— 待填写'}</div></div>
+          <div class="meta-item"><div class="meta-label">价格</div><div class="meta-value price ${p.pr?'':'placeholder'}" id="pr-${p.id}">${p.pr||'—'}</div></div>
+          <div class="meta-item"><div class="meta-label">购买时间</div><div class="meta-value ${p.dt?'':'placeholder'}" id="dt-${p.id}">${p.dt||'— 待填写'}</div></div>
+        </div>
+        <button class="edit-btn" onclick="openEdit(${p.id})">编辑信息</button>
+      </div>
+      <div class="product-status"><span class="status-badge ${p.statusClass}">${statusLabels[p.statusClass]}</span></div>
+    `;
+    document.querySelector('.products-grid').appendChild(card);
+    if (p.img) setCardImg(p.id, p.img);
+  }
+
+  function updateCounter() {
+    const total = document.querySelectorAll('.product-card').length;
+    document.querySelector('.stat-number').textContent = total;
+    document.querySelector('footer div:first-child').textContent = `共 ${total} 件产品 · 护肤品管理目录`;
+  }
+
+  // ── Image helpers ─────────────────────────────────────────────────
+  function triggerImg(id) { document.getElementById('file-'+id).click(); }
+
+  function setCardImg(id, src) {
+    const img = document.getElementById('img-'+id);
+    if (!img) return;
+    img.src = src; img.classList.add('loaded');
+    document.getElementById('imgph-'+id).style.display = 'none';
+  }
+
+  function handleCardImg(e, id) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      setCardImg(id, ev.target.result);
+      if (id < 7) {
+        if (!store.products[id]) store.products[id] = {};
+        store.products[id].img = ev.target.result;
+      } else {
+        const p = store.extra.find(x => x.id === id);
+        if (p) p.img = ev.target.result;
+      }
+      persist();
+    };
+    r.readAsDataURL(f);
+  }
+
+  // ── Add product panel ─────────────────────────────────────────────
+  let addImg = null;
+
+  function openAddPanel() {
+    addImg = null;
+    ['addBrand','addName','addSubtitle','addChannel','addPrice','addDate'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('addCategory').value = 'serum';
+    document.getElementById('addStatus').value = 'status-active';
+    document.getElementById('addFile').value = '';
+    document.getElementById('addPreviewImg').src = '';
+    document.getElementById('addPreviewWrap').classList.remove('visible');
+    document.getElementById('addUploadHint').style.display = 'block';
+    document.getElementById('addChangeBtn').style.display = 'none';
+    document.getElementById('addOverlay').classList.add('open');
+  }
+
+  function closeAddPanel() { document.getElementById('addOverlay').classList.remove('open'); }
+
+  function handleAddImg(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      addImg = ev.target.result;
+      document.getElementById('addPreviewImg').src = addImg;
+      document.getElementById('addPreviewWrap').classList.add('visible');
+      document.getElementById('addUploadHint').style.display = 'none';
+      document.getElementById('addChangeBtn').style.display = 'inline';
+    };
+    r.readAsDataURL(f);
+  }
+
+  function addProduct() {
+    const name = document.getElementById('addName').value.trim();
+    if (!name) { document.getElementById('addName').focus(); return; }
+
+    const p = {
+      id: nextId++,
+      brand: document.getElementById('addBrand').value.trim(),
+      name,
+      subtitle: document.getElementById('addSubtitle').value.trim(),
+      category: document.getElementById('addCategory').value,
+      statusClass: document.getElementById('addStatus').value,
+      ch: document.getElementById('addChannel').value.trim(),
+      pr: document.getElementById('addPrice').value.trim(),
+      dt: document.getElementById('addDate').value.trim(),
+      img: addImg || ''
+    };
+
+    store.extra.push(p);
+    renderCard(p, true);
+    updateCounter();
+    persist();
+
+    closeAddPanel();
+    document.getElementById('img-'+p.id)?.closest('.product-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  document.getElementById('addOverlay').addEventListener('click', e => { if (e.target.id === 'addOverlay') closeAddPanel(); });
+
+  // ── Edit panel ────────────────────────────────────────────────────
+  let currentId = null;
+  let pendingImg = null;
+
+  function handlePanelImg(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      pendingImg = ev.target.result;
+      document.getElementById('panelPreviewImg').src = pendingImg;
+      document.getElementById('panelPreviewWrap').classList.add('visible');
+      document.getElementById('uploadHint').style.display = 'none';
+      document.getElementById('changeBtn').style.display = 'inline';
+    };
+    r.readAsDataURL(f);
+  }
+
+  function openEdit(id) {
+    currentId = id; pendingImg = null;
+    const nameEl = document.querySelector(`#img-${id}`)?.closest('.product-card')?.querySelector('.product-name');
+    document.getElementById('editTitle').textContent = '编辑 · ' + (nameEl ? nameEl.textContent : '产品');
+    document.getElementById('inputChannel').value = document.getElementById('ch-'+id).textContent.replace('— 待填写','').trim();
+    document.getElementById('inputPrice').value = document.getElementById('pr-'+id).textContent.replace('—','').trim();
+    document.getElementById('inputDate').value = document.getElementById('dt-'+id).textContent.replace('— 待填写','').trim();
+
+    const existImg = document.getElementById('img-'+id);
+    document.getElementById('panelFile').value = '';
+    if (existImg && existImg.classList.contains('loaded')) {
+      document.getElementById('panelPreviewImg').src = existImg.src;
+      document.getElementById('panelPreviewWrap').classList.add('visible');
+      document.getElementById('uploadHint').style.display = 'none';
+      document.getElementById('changeBtn').style.display = 'inline';
+    } else {
+      document.getElementById('panelPreviewImg').src = '';
+      document.getElementById('panelPreviewWrap').classList.remove('visible');
+      document.getElementById('uploadHint').style.display = 'block';
+      document.getElementById('changeBtn').style.display = 'none';
+    }
+    document.getElementById('editOverlay').classList.add('open');
+  }
+
+  function closeEdit() { document.getElementById('editOverlay').classList.remove('open'); currentId = null; pendingImg = null; }
+
+  function saveEdit() {
+    if (!currentId) return;
+    const ch = document.getElementById('inputChannel').value.trim();
+    const pr = document.getElementById('inputPrice').value.trim();
+    const dt = document.getElementById('inputDate').value.trim();
+
+    const setMeta = (elId, val, empty) => {
+      const el = document.getElementById(elId);
+      el.textContent = val || empty;
+      val ? el.classList.remove('placeholder') : el.classList.add('placeholder');
+    };
+    setMeta('ch-'+currentId, ch, '— 待填写');
+    setMeta('pr-'+currentId, pr, '—');
+    setMeta('dt-'+currentId, dt, '— 待填写');
+    if (pendingImg) setCardImg(currentId, pendingImg);
+
+    const ep = store.extra.find(x => x.id === currentId);
+    if (ep) { ep.ch = ch; ep.pr = pr; ep.dt = dt; if (pendingImg) ep.img = pendingImg; }
+
+    persist();
+    closeEdit();
+  }
+
+  // ── Filter ────────────────────────────────────────────────────────
+  function filterCards(cat, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.product-card').forEach(c => {
+      c.style.display = (cat === 'all' || c.dataset.category === cat) ? 'grid' : 'none';
+    });
+  }
+
+  document.getElementById('editOverlay').addEventListener('click', e => { if (e.target.id === 'editOverlay') closeEdit(); });
+
+  // ── Init (Async Boot) ─────────────────────────────────────────────
+  async function boot() {
+    await initStore();
+    restoreBuiltIn();
+    restoreExtra();
+    updateDateDisplay();
+  }
+  
+  function updateDateDisplay() {
+      const today = new Date();
+      document.getElementById('updateDate').textContent = `最后更新：${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  }
+
+  boot();
+
+</script>
+</body>
+</html>
